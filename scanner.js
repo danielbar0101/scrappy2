@@ -14,6 +14,7 @@ function scanWebsite() {
     },
     body: JSON.stringify({ url, keywords })
   })
+    .then(printToTerminal('Scanning...\n'))
     .then(response => response.json())
     .then(data => {
       printToTerminal('Scan completed.\n');

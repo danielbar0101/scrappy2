@@ -1,13 +1,14 @@
 import os
 import re
 import requests
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 
 app = Flask(__name__)
 
 @app.route('/')
 def index():
-    return app.send_static_file('index.html')
+    return send_from_directory('.', 'index.html')
+
 
 @app.route('/scan', methods=['POST'])
 def scan():
