@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Website Scanner</title>
+  <style>
+    #terminal {
+      width: 100%;
+      height: 300px;
+      background-color: #000;
+      color: #0f0;
+      padding: 10px;
+      overflow-y: scroll;
+    }
+
+    #input-container {
+      margin-top: 10px;
+    }
+
+    input[type="text"], input[type="url"] {
+      width: 300px;
+      padding: 5px;
+    }
+
+    button {
+      padding: 5px 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Website Scanner</h1>
+  <div id="terminal"></div>
+  <div id="input-container">
+    <label for="url-input">URL:</label>
+    <input type="url" id="url-input" required><br>
+    <label for="keywords-input">Keywords:</label>
+    <input type="text" id="keywords-input" required><br>
+    <button onclick="scanWebsite()">Scan</button>
+  </div>
+
+  <script src="scanner.js"></script>
+</body>
+</html>
