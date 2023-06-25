@@ -1,45 +1,81 @@
-import os
-import re
 import requests
-from flask import Flask, request, jsonify, send_from_directory
+from bs4 import BeautifulSoup
+import threading
+from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
 
+scan_thread = None
+stop_flag = False
+
+
+def scan_website(url, keywords):
+    def scan_recursive(url):
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                content = response.text.lower()
+                keyword_matches = []
+                for keyword in keywords:
+                    if keyword.lower() in content:
+                        keyword_matches.append({"keyword": keyword, "url": url})
+
+                pdf_files = []
+                soup = BeautifulSoup(response.content, 'html.parser')
+                for link in soup.find_all('a'):
+                    href = link.get('href')
+                    if href and href.endswith(".pdf"):
+                        pdf_files.append(href)
+
+                result = {
+                    "keywordMatches": keyword_matches,
+                    "pdfFiles": pdf_files
+                }
+                return result
+        except requests.exceptions.RequestException:
+            return None
+
+def scan_worker():
+    try:
+        with app.app_context():
+            result = scan_recursive(current_url)
+            return jsonify(result)
+    except Exception as e:
+        print(f"Error occurred during scanning: {str(e)}")
+        return jsonify({"message": "Error occurred during scanning."})
+
+
+
+
 @app.route('/')
 def index():
-    return send_from_directory('.', 'index.html')
+    return render_template('index.html')
 
 
 @app.route('/scan', methods=['POST'])
-def scan():
-    data = request.get_json()
-    url = data['url']
-    keywords = data['keywords']
+def start_scan():
+    global scan_thread, stop_flag
 
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-    except requests.exceptions.RequestException as e:
-        return jsonify({'error': str(e)})
+    if scan_thread is not None and scan_thread.is_alive():
+        return jsonify({"message": "Scan already in progress."})
 
-    html_content = response.text
-    keyword_matches = []
-    pdf_files = []
+    url = request.json['url']
+    keywords = request.json['keywords']
 
-    # Scan for keywords
-    for keyword in keywords:
-        matches = re.finditer(keyword, html_content, re.IGNORECASE)
-        for match in matches:
-            keyword_matches.append({'keyword': keyword, 'url': url})
+    stop_flag = False
+    scan_thread = threading.Thread(target=scan_website, args=(url, keywords))
+    scan_thread.start()
 
-    # Find PDF files
-    pdf_urls = re.findall(r'href=[\'"]?([^\'" >]+\.pdf)', html_content, re.IGNORECASE)
-    for pdf_url in pdf_urls:
-        if not pdf_url.startswith('http'):
-            pdf_url = url + pdf_url if not url.endswith('/') else url[:-1] + pdf_url
-        pdf_files.append(pdf_url)
+    return jsonify({"message": "Scan started."})
 
-    return jsonify({'keywordMatches': keyword_matches, 'pdfFiles': pdf_files})
+
+@app.route('/stop', methods=['POST'])
+def stop_scan():
+    global stop_flag
+
+    stop_flag = True
+    return jsonify({"message": "Scan stopped."})
+
 
 if __name__ == '__main__':
-    app.run()
+    app.run(debug=True)

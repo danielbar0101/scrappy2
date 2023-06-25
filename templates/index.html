@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Scrappy 2.0</title>
+    <style>
+        body {
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .terminal {
+            width: 80%;
+            max-width: 800px;
+            height: 400px;
+            background-color: #000;
+            color: #0F0;
+            padding: 10px;
+            overflow-y: scroll;
+        }
+
+        .terminal p {
+            margin: 0;
+            line-height: 1.2;
+        }
+
+        .input-line {
+            display: flex;
+        }
+
+        .input-line input {
+            flex-grow: 1;
+            background-color: transparent;
+            border: none;
+            color: #0F0;
+            outline: none;
+        }
+
+        .input-line input:focus {
+            outline: none;
+        }
+
+        .input-line input::placeholder {
+            color: #666;
+        }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="{{ url_for('static', filename='scanner.js') }}"></script>
+</head>
+<body>
+    <h1>Scrappy 2.0</h1>
+
+    <div class="terminal">
+        <p>Enter the URL and keywords separated by commas and press Enter:</p>
+        <div class="input-line">
+            <input type="text" id="url" placeholder="URL" required>
+        </div>
+        <div class="input-line">
+            <input type="text" id="keywords" placeholder="Keywords" required>
+        </div>
+        <div id="output"></div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            var outputContainer = $('#output');
+
+            $('.terminal').keypress(function(event) {
+                if (event.which === 13) {  // Enter key
+                    event.preventDefault();
+
+                    var url = $('#url').val();
+                    var keywords = $('#keywords').val().split(',').map(function(keyword) {
+                        return keyword.trim();
+                    });
+
+                    outputContainer.empty();
+                    scanWebsite(url, keywords);
+                }
+            });
+
+            function scanWebsite(url, keywords) {
+                var output = '';
+
+                output += '<p>Scanning website ' + url + ' for keywords: ' + keywords.join(', ') + '</p>';
+                outputContainer.append(output);
+
+                $.ajax({
+                    url: '/scan',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        url: url,
+                        keywords: keywords
+                    }),
+                    success: function(data) {
+                        output += '<p>Scan completed. Results:</p>';
+
+                        if (data.keywordMatches.length > 0) {
+                            output += '<p>Keyword Matches:</p>';
+                            data.keywordMatches.forEach(function(match) {
+                                output += '<p>Keyword: ' + match.keyword + ', URL: ' + match.url + '</p>';
+                            });
+                        } else {
+                            output += '<p>No keyword matches found.</p>';
+                        }
+
+                        if (data.pdfFiles.length > 0) {
+                            output += '<p>PDF Files:</p>';
+                            data.pdfFiles.forEach(function(pdfUrl) {
+                                output += '<p><a href="' + pdfUrl + '">' + pdfUrl + '</a></p>';
+                            });
+                        } else {
+                            output += '<p>No PDF files found.</p>';
+                        }
+
+                        output += '<p>Scan finished.</p>';
+                        outputContainer.append(output);
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        output += '<p>Error: ' + errorThrown + '</p>';
+                        outputContainer.append(output);
+                    },
+                    complete: function() {
+                        outputContainer.scrollTop(outputContainer[0].scrollHeight);
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
